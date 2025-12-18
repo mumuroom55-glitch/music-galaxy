@@ -41,9 +41,9 @@
 
     <div id="overlay">
         <h1>INTERSTELLAR</h1>
-        <label for="musicUpload">📂 上传音乐 (MP3)</label>
-        <input type="file" id="musicUpload" accept="audio/*">
-        <p id="loading">推荐：Hans Zimmer - Cornfield Chase (星际穿越)</p>
+        <label for="musicUpload">📂 上传音乐 (MP3 / FLAC / OGG)</label>
+        <input type="file" id="musicUpload" accept=".mp3,.flac,.ogg,audio/*">
+        <p id="loading">支持高无损音质可视化渲染</p>
     </div>
 
     <div id="controls">
@@ -67,30 +67,27 @@
 
     <script>
         // --- 全局配置 ---
-        const PARTICLE_COUNT = 40000; // 粒子数量，4万颗以保证性能与效果平衡
+        const PARTICLE_COUNT = 40000; 
         const SEPARATION = 100;
         let camera, scene, renderer, composer;
         let particles, geometry;
         let analyser, dataArray;
         let currentShape = 'galaxy';
         
-        // 目标位置存储
         const shapes = {};
         const targets = {
             sphere: [], galaxy: [], heart: [], lorenz: [], 
             mobius: [], mandala: [], helix: [], cube: [] 
         };
 
-        // 工具函数
         const rand = (min, max) => Math.random() * (max - min) + min;
 
         init();
         animate();
 
         function init() {
-            // 1. 场景搭建
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x050505, 0.0015); // 深空雾气
+            scene.fog = new THREE.FogExp2(0x050505, 0.0015);
 
             camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 2000);
             camera.position.z = 400;
@@ -101,29 +98,21 @@
             renderer.toneMapping = THREE.ReinhardToneMapping;
             document.body.appendChild(renderer.domElement);
 
-            // 2. 后期处理 (Bloom 辉光核心)
             const renderScene = new THREE.RenderPass(scene, camera);
             
-            // Bloom 参数：分辨率, 强度, 半径, 阈值
             const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
             bloomPass.threshold = 0;
-            bloomPass.strength = 1.8; // 辉光强度
+            bloomPass.strength = 1.8; 
             bloomPass.radius = 0.5;
 
             composer = new THREE.EffectComposer(renderer);
             composer.addPass(renderScene);
             composer.addPass(bloomPass);
 
-            // 3. 粒子生成
             generateParticles();
-            
-            // 4. 预计算所有形状
             calculateShapes();
 
-            // 5. 事件监听
             window.addEventListener('resize', onWindowResize);
-            
-            // 音乐上传监听
             document.getElementById('musicUpload').addEventListener('change', handleAudioUpload);
         }
 
@@ -137,30 +126,27 @@
 
             for (let i = 0; i < PARTICLE_COUNT; i++) {
                 const i3 = i * 3;
-                // 初始位置随机
                 positions[i3] = rand(-500, 500);
                 positions[i3+1] = rand(-500, 500);
                 positions[i3+2] = rand(-500, 500);
 
-                // 初始颜色：星际蓝紫调
-                colorObj.setHSL(0.6 + rand(0, 0.2), 0.8, 0.6); // 蓝色到紫色
+                colorObj.setHSL(0.6 + rand(0, 0.2), 0.8, 0.6); 
                 colors[i3] = colorObj.r;
                 colors[i3+1] = colorObj.g;
                 colors[i3+2] = colorObj.b;
                 
-                sizes[i] = rand(0.5, 2.0); // 随机大小
+                sizes[i] = rand(0.5, 2.0); 
             }
 
             geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
             geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
             geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
 
-            // 材质：使用 Shader 或 Texture 模拟光点
             const material = new THREE.PointsMaterial({
                 size: 2,
                 vertexColors: true,
                 map: new THREE.TextureLoader().load('https://threejs.org/examples/textures/sprites/spark1.png'),
-                blending: THREE.AdditiveBlending, // 叠加混合，产生发光感
+                blending: THREE.AdditiveBlending,
                 depthTest: false,
                 transparent: true,
                 opacity: 0.8
@@ -171,19 +157,18 @@
         }
 
         function calculateShapes() {
-            // A. Galaxy (星系螺旋)
+            // A. Galaxy
             for (let i = 0; i < PARTICLE_COUNT; i++) {
                 const angle = i * 0.05;
                 const r = i * 0.015;
-                // 加上随机偏移形成星云厚度
                 targets.galaxy.push(
                     Math.cos(angle) * r * 8 + rand(-20, 20),
                     Math.sin(angle) * r * 8 + rand(-20, 20),
-                    (Math.random()-0.5) * (100 - r) * 2 // 中间厚边缘薄
+                    (Math.random()-0.5) * (100 - r) * 2 
                 );
             }
 
-            // B. Sphere (球体/黑洞视界)
+            // B. Sphere
             for (let i = 0; i < PARTICLE_COUNT; i++) {
                 const phi = Math.acos(-1 + (2 * i) / PARTICLE_COUNT);
                 const theta = Math.sqrt(PARTICLE_COUNT * Math.PI) * phi;
@@ -195,20 +180,17 @@
                 );
             }
 
-            // C. Heart (笛卡尔心)
+            // C. Heart
             for (let i = 0; i < PARTICLE_COUNT; i++) {
-                 // 使用 parametric equations
                  let t = rand(0, Math.PI * 2); 
-                 // 稍微分散一点
                  let scale = 10;
                  let x = 16 * Math.pow(Math.sin(t), 3);
                  let y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
-                 // 简单的层叠
                  let z = rand(-5, 5) * (x * 0.1 + 2);
                  targets.heart.push(x * scale, y * scale, z * scale);
             }
 
-            // D. Lorenz Attractor (Lorenz吸引子)
+            // D. Lorenz
             let x = 0.1, y = 0, z = 0;
             let dt = 0.006;
             let sigma = 10, rho = 28, beta = 8/3;
@@ -220,7 +202,7 @@
                 targets.lorenz.push(x * 4, y * 4, (z - 25) * 4);
             }
 
-            // E. Möbius Strip (莫比乌斯带)
+            // E. Möbius
             for (let i = 0; i < PARTICLE_COUNT; i++) {
                 let u = rand(0, Math.PI * 2);
                 let v = rand(-1, 1);
@@ -232,11 +214,11 @@
                 targets.mobius.push(tx, ty, tz);
             }
 
-            // F. Mandala (曼陀罗/万花筒)
+            // F. Mandala
             for (let i = 0; i < PARTICLE_COUNT; i++) {
                 let r = rand(10, 200);
                 let theta = rand(0, Math.PI * 2);
-                let petals = 6; // 花瓣数
+                let petals = 6; 
                 let distortion = Math.sin(theta * petals) * 30;
                 targets.mandala.push(
                     (r + distortion) * Math.cos(theta),
@@ -245,27 +227,25 @@
                 );
             }
 
-            // G. Helix (双螺旋/DNA)
+            // G. Helix
             for (let i = 0; i < PARTICLE_COUNT; i++) {
                 let t = i * 0.02;
                 let radius = 60;
                 targets.helix.push(
                     radius * Math.cos(t),
-                    t * 2 - 200, // 拉长
+                    t * 2 - 200,
                     radius * Math.sin(t)
                 );
             }
             
-            // H. Cube (近似 Menger Sponge 分形结构的基础)
-            // 通过随机丢弃中心部分的点来模拟
+            // H. Cube
             for(let i=0; i<PARTICLE_COUNT; i++) {
                 let s = 250;
                 let px = rand(-s/2, s/2);
                 let py = rand(-s/2, s/2);
                 let pz = rand(-s/2, s/2);
-                // 简单的概率剔除 (模拟空洞)
                 if (Math.random() > 0.5) {
-                    px *= 1.5; py *= 1.5; pz *= 1.5; // 外扩
+                    px *= 1.5; py *= 1.5; pz *= 1.5;
                 }
                 targets.cube.push(px, py, pz);
             }
@@ -275,22 +255,22 @@
             const file = event.target.files[0];
             if (!file) return;
 
+            // 停止之前的音频（如果有）- 简单版不做复杂状态管理，直接替换 src
             const audioEl = document.createElement('audio');
+            // 这里兼容 MP3, FLAC, OGG, WAV 等浏览器原生支持的格式
             audioEl.src = URL.createObjectURL(file);
             audioEl.loop = true;
-            audioEl.play();
+            audioEl.play().catch(e => alert("播放失败，可能是浏览器不支持此音频格式或需要交互权限"));
 
-            // Web Audio API
             const context = new (window.AudioContext || window.webkitAudioContext)();
             const src = context.createMediaElementSource(audioEl);
             analyser = context.createAnalyser();
-            analyser.fftSize = 2048; // 高精度
+            analyser.fftSize = 2048; 
             src.connect(analyser);
             analyser.connect(context.destination);
             
             dataArray = new Uint8Array(analyser.frequencyBinCount);
 
-            // 隐藏遮罩，显示控制台
             document.getElementById('overlay').style.opacity = 0;
             setTimeout(() => {
                 document.getElementById('overlay').style.display = 'none';
@@ -298,10 +278,8 @@
             }, 1000);
         }
 
-        // 切换形状
         window.switchShape = function(name) {
             currentShape = name;
-            // 高亮按钮
             document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
             event.target.classList.add('active');
         };
@@ -316,22 +294,19 @@
         function animate() {
             requestAnimationFrame(animate);
 
-            // 1. 获取音频数据
             let audioLevel = 0;
-            let lowFreq = 0; // 低音
-            let highFreq = 0; // 高音
+            let lowFreq = 0;
+            let highFreq = 0; 
             
             if (analyser) {
                 analyser.getByteFrequencyData(dataArray);
-                // 计算不同频段
                 let sum = 0;
                 for(let i=0; i<dataArray.length; i++) sum += dataArray[i];
                 audioLevel = sum / dataArray.length;
                 
-                lowFreq = dataArray[50]; // 约100Hz
-                highFreq = dataArray[800]; // 高频
+                lowFreq = dataArray[50]; 
+                highFreq = dataArray[800]; 
             } else {
-                // 待机模式下的呼吸律动
                 audioLevel = 20 + Math.sin(Date.now() * 0.002) * 10;
             }
 
@@ -339,20 +314,15 @@
             const colors = geometry.attributes.color.array;
             const targetPos = targets[currentShape];
 
-            // 2. 粒子运动与变形
-            // 速度随低音变化 (Bass kick = fast move)
             const speed = 0.03 + (lowFreq / 255) * 0.05;
 
             for (let i = 0; i < PARTICLE_COUNT; i++) {
                 const i3 = i * 3;
                 
-                // 插值移动到目标形状
                 positions[i3] += (targetPos[i3] - positions[i3]) * speed;
                 positions[i3+1] += (targetPos[i3+1] - positions[i3+1]) * speed;
                 positions[i3+2] += (targetPos[i3+2] - positions[i3+2]) * speed;
 
-                // 3. 音乐律动 - 震动
-                // 如果是高潮部分，粒子会轻微抖动
                 if (audioLevel > 80) {
                     const shake = (audioLevel - 80) * 0.05;
                     positions[i3] += rand(-shake, shake);
@@ -360,13 +330,7 @@
                     positions[i3+2] += rand(-shake, shake);
                 }
 
-                // 4. 动态变色
-                // 基于位置和音频改变颜色
-                // 默认颜色
                 const mixFactor = (Math.sin(Date.now() * 0.001 + positions[i3]*0.01) + 1) / 2;
-                // 颜色 1: 星际金/橙 (Interstellar Cornfield vibe)
-                // 颜色 2: 深空蓝/紫
-                // 高音强时变白变亮
                 
                 const r = 0.1 + mixFactor * 0.8 + (highFreq/255)*0.5;
                 const g = 0.1 + mixFactor * 0.4 + (highFreq/255)*0.5;
@@ -380,18 +344,14 @@
             geometry.attributes.position.needsUpdate = true;
             geometry.attributes.color.needsUpdate = true;
 
-            // 5. 整体旋转
             const rotationSpeed = 0.001 + (audioLevel / 5000);
             particles.rotation.y += rotationSpeed;
             particles.rotation.z += rotationSpeed * 0.5;
 
-            // 6. 辉光强度随节奏闪烁
             composer.passes[1].strength = 1.5 + (audioLevel / 255) * 1.0;
 
-            // 7. 渲染
             composer.render();
         }
     </script>
 </body>
 </html>
-
