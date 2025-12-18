@@ -2,59 +2,118 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <title>Interstellar Quantum Visualizer</title>
+    <title>Interstellar Quantum Player - Luminous Edition</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #050505; font-family: 'Segoe UI', sans-serif; }
+        /* 背景调得更深，对比度更高 */
+        body { margin: 0; overflow: hidden; background-color: #020204; font-family: 'Segoe UI', sans-serif; user-select: none; }
         
-        /* 唯美 UI 设计 */
+        /* 启动遮罩 */
         #overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; justify-content: center; align-items: center;
-            background: radial-gradient(circle, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.9) 100%);
+            background: radial-gradient(circle, rgba(0,0,0,0.4) 0%, rgba(2,2,5,0.98) 100%);
             z-index: 10; flex-direction: column; transition: opacity 1s;
         }
-        h1 { color: #fff; font-weight: 300; letter-spacing: 5px; text-shadow: 0 0 20px rgba(255,255,255,0.5); margin-bottom: 20px; }
+        h1 { color: #fff; font-weight: 300; letter-spacing: 8px; text-shadow: 0 0 40px rgba(150,220,255,0.8); margin-bottom: 30px; }
         
-        #controls {
-            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-            z-index: 5; text-align: center; width: 90%;
-            background: rgba(0, 0, 0, 0.3); padding: 15px; border-radius: 30px;
-            backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1);
-            display: none; /* 初始隐藏，开始后显示 */
+        /* 文件上传按钮美化 */
+        label.upload-btn {
+            background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255,255,255,0.4);
+            color: #fff; padding: 15px 40px; cursor: pointer; border-radius: 50px;
+            font-size: 14px; letter-spacing: 2px; transition: 0.3s;
+            box-shadow: 0 0 30px rgba(50,100,255,0.3);
+            text-shadow: 0 0 10px rgba(255,255,255,0.5);
         }
-
-        button, label {
-            background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.2);
-            color: #ddd; padding: 8px 16px; margin: 4px; cursor: pointer;
-            border-radius: 20px; font-size: 12px; transition: all 0.3s;
-            text-transform: uppercase; letter-spacing: 1px; display: inline-block;
-        }
-        button:hover, label:hover { background: rgba(255, 255, 255, 0.3); color: #fff; box-shadow: 0 0 15px rgba(255,255,255,0.3); }
-        button.active { background: rgba(100, 200, 255, 0.3); border-color: rgba(100, 200, 255, 0.6); color: #fff; }
-
+        label.upload-btn:hover { background: rgba(255, 255, 255, 0.3); box-shadow: 0 0 50px rgba(100,200,255,0.6); }
         input[type="file"] { display: none; }
+
+        /* 顶部形状切换栏 */
+        #shape-controls {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            z-index: 5; display: flex; gap: 10px;
+            background: rgba(20, 20, 30, 0.5); padding: 10px 20px; border-radius: 30px;
+            backdrop-filter: blur(8px); opacity: 0; transition: opacity 1s; pointer-events: none;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        #shape-controls.visible { opacity: 1; pointer-events: auto; }
         
-        #loading { color: #888; font-size: 12px; margin-top: 10px; }
+        .shape-btn {
+            background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #aaa;
+            padding: 6px 12px; cursor: pointer; border-radius: 15px; font-size: 11px; transition: 0.3s;
+        }
+        .shape-btn:hover { color: #fff; border-color: rgba(255,255,255,0.6); box-shadow: 0 0 15px rgba(255,255,255,0.2); }
+        .shape-btn.active { background: rgba(100, 150, 255, 0.2); color: #fff; border-color: #fff; box-shadow: 0 0 20px rgba(100,150,255,0.4); }
+
+        /* 左下角播放器 */
+        #player-ui {
+            position: absolute; bottom: 30px; left: 30px; width: 350px;
+            background: rgba(30, 30, 45, 0.5);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 20px;
+            padding: 20px;
+            z-index: 5;
+            display: flex; flex-direction: column; gap: 10px;
+            opacity: 0; transition: opacity 1s; transform: translateY(20px);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+        }
+        #player-ui.visible { opacity: 1; transform: translateY(0); }
+
+        .track-info { display: flex; justify-content: space-between; align-items: center; color: #fff; font-size: 12px; margin-bottom: 5px; text-shadow: 0 0 10px rgba(255,255,255,0.3);}
+        .time-display { font-family: monospace; color: #ccc; }
+        
+        .controls-row { display: flex; align-items: center; gap: 15px; }
+        
+        #play-pause-btn {
+            width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.1); color: #fff; cursor: pointer;
+            display: flex; justify-content: center; align-items: center; font-size: 16px; transition: 0.2s;
+            box-shadow: 0 0 15px rgba(255,255,255,0.1);
+        }
+        #play-pause-btn:hover { background: rgba(255,255,255,0.3); transform: scale(1.1); box-shadow: 0 0 25px rgba(255,255,255,0.4); }
+
+        /* 进度条样式 */
+        input[type=range] {
+            -webkit-appearance: none; width: 100%; background: transparent; cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px; background: rgba(255,255,255,0.15); border-radius: 2px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 12px; width: 12px; border-radius: 50%;
+            background: #fff; margin-top: -4px; box-shadow: 0 0 15px rgba(255,255,255,0.9);
+        }
+        
     </style>
 </head>
 <body>
 
     <div id="overlay">
-        <h1>INTERSTELLAR</h1>
-        <label for="musicUpload">📂 上传音乐 (MP3 / FLAC / OGG)</label>
-        <input type="file" id="musicUpload" accept=".mp3,.flac,.ogg,audio/*">
-        <p id="loading">支持高无损音质可视化渲染</p>
+        <h1>COSMIC LUMINESCENCE</h1>
+        <label class="upload-btn" for="musicUpload">📂 开启星际之旅 (MP3/FLAC)</label>
+        <input type="file" id="musicUpload" accept="audio/*">
     </div>
 
-    <div id="controls">
-        <button onclick="switchShape('galaxy')">星系</button>
-        <button onclick="switchShape('sphere')">球体</button>
-        <button onclick="switchShape('mobius')">莫比乌斯</button>
-        <button onclick="switchShape('lorenz')">Lorenz</button>
-        <button onclick="switchShape('heart')">心形</button>
-        <button onclick="switchShape('mandala')">曼陀罗</button>
-        <button onclick="switchShape('helix')">双螺旋</button>
-        <button onclick="switchShape('cube')">分形方块</button>
+    <div id="shape-controls">
+        <button class="shape-btn active" onclick="switchShape('galaxy')">星系</button>
+        <button class="shape-btn" onclick="switchShape('sphere')">黑洞</button>
+        <button class="shape-btn" onclick="switchShape('heart')">心跳</button>
+        <button class="shape-btn" onclick="switchShape('lorenz')">混沌</button>
+        <button class="shape-btn" onclick="switchShape('mobius')">莫比乌斯</button>
+        <button class="shape-btn" onclick="switchShape('mandala')">曼陀罗</button>
+    </div>
+
+    <div id="player-ui">
+        <div class="track-info">
+            <span style="font-weight: 500; letter-spacing: 1px;">ULTRA LUMINOUS ENGINE</span>
+            <span class="time-display" id="time-display">0:00 / 0:00</span>
+        </div>
+        <input type="range" id="progress-bar" value="0" step="0.1">
+        <div class="controls-row">
+            <button id="play-pause-btn">❚❚</button>
+            <span style="font-size: 10px; color: #888;">HDR BLOOM & PHYSICS ACTIVE</span>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -66,44 +125,55 @@
     <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 
     <script>
-        // --- 全局配置 ---
-        const PARTICLE_COUNT = 40000; 
-        const SEPARATION = 100;
+        // --- 核心配置 ---
+        const PARTICLE_COUNT = 45000; 
         let camera, scene, renderer, composer;
         let particles, geometry;
-        let analyser, dataArray;
+        let analyser, dataArray, audioContext, audioEl;
         let currentShape = 'galaxy';
+        let isPlaying = false;
         
         const shapes = {};
         const targets = {
-            sphere: [], galaxy: [], heart: [], lorenz: [], 
-            mobius: [], mandala: [], helix: [], cube: [] 
+            sphere: [], galaxy: [], heart: [], lorenz: [], mobius: [], mandala: []
         };
-
         const rand = (min, max) => Math.random() * (max - min) + min;
+
+        const playBtn = document.getElementById('play-pause-btn');
+        const progressBar = document.getElementById('progress-bar');
+        const timeDisplay = document.getElementById('time-display');
 
         init();
         animate();
 
         function init() {
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x050505, 0.0015);
+            // [修改点1] 雾气更深，增强对比度
+            scene.fog = new THREE.FogExp2(0x020205, 0.0025);
 
-            camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 2000);
-            camera.position.z = 400;
+            camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 5000);
+            camera.position.z = 450;
 
             renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.toneMapping = THREE.ReinhardToneMapping;
+            // [修改点2] 使用 ACESFilmicToneMapping 以获得电影级的HDR效果
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            // [修改点3] 提高整体曝光度，让画面更亮
+            renderer.toneMappingExposure = 1.6; 
             document.body.appendChild(renderer.domElement);
 
+            // --- 后期处理核心调整 ---
             const renderScene = new THREE.RenderPass(scene, camera);
-            
             const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-            bloomPass.threshold = 0;
-            bloomPass.strength = 1.8; 
-            bloomPass.radius = 0.5;
+            
+            // [关键修改点4：辉光参数]
+            // threshold (阈值) 降到 0：让所有粒子，无论多暗，都参与辉光计算，增加宇宙致密感。
+            bloomPass.threshold = 0; 
+            // strength (强度) 提高：基础辉光更强。
+            bloomPass.strength = 2.2; 
+            // radius (半径) 增大：光晕扩散得更远，更朦胧。
+            bloomPass.radius = 0.85;
 
             composer = new THREE.EffectComposer(renderer);
             composer.addPass(renderScene);
@@ -114,6 +184,13 @@
 
             window.addEventListener('resize', onWindowResize);
             document.getElementById('musicUpload').addEventListener('change', handleAudioUpload);
+            
+            playBtn.addEventListener('click', togglePlay);
+            progressBar.addEventListener('input', () => {
+                if(audioEl) {
+                    audioEl.currentTime = (progressBar.value / 100) * audioEl.duration;
+                }
+            });
         }
 
         function generateParticles() {
@@ -126,16 +203,19 @@
 
             for (let i = 0; i < PARTICLE_COUNT; i++) {
                 const i3 = i * 3;
-                positions[i3] = rand(-500, 500);
-                positions[i3+1] = rand(-500, 500);
-                positions[i3+2] = rand(-500, 500);
+                positions[i3] = rand(-1000, 1000);
+                positions[i3+1] = rand(-1000, 1000);
+                positions[i3+2] = rand(-1000, 1000);
 
-                colorObj.setHSL(0.6 + rand(0, 0.2), 0.8, 0.6); 
+                // 初始颜色：更高饱和度和亮度
+                let hue = Math.random() > 0.6 ? 0.6 : 0.68; // 偏蓝紫
+                colorObj.setHSL(hue, 0.9, 0.7); 
                 colors[i3] = colorObj.r;
                 colors[i3+1] = colorObj.g;
                 colors[i3+2] = colorObj.b;
                 
-                sizes[i] = rand(0.5, 2.0); 
+                // [修改点5] 粒子整体变大一点，增加光源面积
+                sizes[i] = rand(1.0, 3.5); 
             }
 
             geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -143,144 +223,168 @@
             geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
 
             const material = new THREE.PointsMaterial({
-                size: 2,
+                // [修改点6] 材质基础大小增加
+                size: 2.5,
                 vertexColors: true,
+                // 使用一个中心极亮，边缘柔和的纹理
                 map: new THREE.TextureLoader().load('https://threejs.org/examples/textures/sprites/spark1.png'),
-                blending: THREE.AdditiveBlending,
-                depthTest: false,
+                blending: THREE.AdditiveBlending, // 关键：发光叠加模式
+                depthWrite: false,
                 transparent: true,
-                opacity: 0.8
+                // [修改点7] 不透明度拉满
+                opacity: 1.0 
             });
 
             particles = new THREE.Points(geometry, material);
             scene.add(particles);
         }
 
+        // --- 预计算形状 (保持不变) ---
         function calculateShapes() {
-            // A. Galaxy
+            // Galaxy
             for (let i = 0; i < PARTICLE_COUNT; i++) {
                 const angle = i * 0.05;
                 const r = i * 0.015;
                 targets.galaxy.push(
-                    Math.cos(angle) * r * 8 + rand(-20, 20),
-                    Math.sin(angle) * r * 8 + rand(-20, 20),
-                    (Math.random()-0.5) * (100 - r) * 2 
+                    Math.cos(angle) * r * 9 + rand(-15, 15),
+                    Math.sin(angle) * r * 9 + rand(-15, 15),
+                    (Math.random()-0.5) * (150 - r) * 1.5
                 );
             }
-
-            // B. Sphere
+            // Sphere
             for (let i = 0; i < PARTICLE_COUNT; i++) {
                 const phi = Math.acos(-1 + (2 * i) / PARTICLE_COUNT);
                 const theta = Math.sqrt(PARTICLE_COUNT * Math.PI) * phi;
-                const r = 180;
+                const r = 220;
                 targets.sphere.push(
                     r * Math.cos(theta) * Math.sin(phi),
                     r * Math.sin(theta) * Math.sin(phi),
                     r * Math.cos(phi)
                 );
             }
-
-            // C. Heart
+            // Heart
             for (let i = 0; i < PARTICLE_COUNT; i++) {
                  let t = rand(0, Math.PI * 2); 
-                 let scale = 10;
+                 let scale = 12;
                  let x = 16 * Math.pow(Math.sin(t), 3);
                  let y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
                  let z = rand(-5, 5) * (x * 0.1 + 2);
                  targets.heart.push(x * scale, y * scale, z * scale);
             }
-
-            // D. Lorenz
+            // Lorenz
             let x = 0.1, y = 0, z = 0;
-            let dt = 0.006;
+            let dt = 0.0055;
             let sigma = 10, rho = 28, beta = 8/3;
             for (let i = 0; i < PARTICLE_COUNT; i++) {
                 let dx = sigma * (y - x) * dt;
                 let dy = (x * (rho - z) - y) * dt;
                 let dz = (x * y - beta * z) * dt;
                 x += dx; y += dy; z += dz;
-                targets.lorenz.push(x * 4, y * 4, (z - 25) * 4);
+                targets.lorenz.push(x * 5.5, y * 5.5, (z - 25) * 5.5);
             }
-
-            // E. Möbius
+            // Mobius
             for (let i = 0; i < PARTICLE_COUNT; i++) {
                 let u = rand(0, Math.PI * 2);
                 let v = rand(-1, 1);
-                let radius = 120;
-                let width = 60;
-                let tx = (radius + v * width/2 * Math.cos(u/2)) * Math.cos(u);
-                let ty = (radius + v * width/2 * Math.cos(u/2)) * Math.sin(u);
-                let tz = v * width/2 * Math.sin(u/2);
-                targets.mobius.push(tx, ty, tz);
+                let radius = 150;
+                let width = 75;
+                targets.mobius.push(
+                    (radius + v * width/2 * Math.cos(u/2)) * Math.cos(u),
+                    (radius + v * width/2 * Math.cos(u/2)) * Math.sin(u),
+                    v * width/2 * Math.sin(u/2)
+                );
             }
-
-            // F. Mandala
+            // Mandala
             for (let i = 0; i < PARTICLE_COUNT; i++) {
-                let r = rand(10, 200);
+                let r = rand(10, 240);
                 let theta = rand(0, Math.PI * 2);
-                let petals = 6; 
-                let distortion = Math.sin(theta * petals) * 30;
+                let petals = 8; 
+                let distortion = Math.sin(theta * petals) * 45;
                 targets.mandala.push(
                     (r + distortion) * Math.cos(theta),
                     (r + distortion) * Math.sin(theta),
-                    Math.sin(r * 0.1) * 20
+                    Math.sin(r * 0.15) * 35
                 );
-            }
-
-            // G. Helix
-            for (let i = 0; i < PARTICLE_COUNT; i++) {
-                let t = i * 0.02;
-                let radius = 60;
-                targets.helix.push(
-                    radius * Math.cos(t),
-                    t * 2 - 200,
-                    radius * Math.sin(t)
-                );
-            }
-            
-            // H. Cube
-            for(let i=0; i<PARTICLE_COUNT; i++) {
-                let s = 250;
-                let px = rand(-s/2, s/2);
-                let py = rand(-s/2, s/2);
-                let pz = rand(-s/2, s/2);
-                if (Math.random() > 0.5) {
-                    px *= 1.5; py *= 1.5; pz *= 1.5;
-                }
-                targets.cube.push(px, py, pz);
             }
         }
 
+        // --- 音频处理 ---
         function handleAudioUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
+            if (audioEl) audioEl.pause();
+            if (audioContext) audioContext.close();
 
-            // 停止之前的音频（如果有）- 简单版不做复杂状态管理，直接替换 src
-            const audioEl = document.createElement('audio');
-            // 这里兼容 MP3, FLAC, OGG, WAV 等浏览器原生支持的格式
+            audioEl = document.createElement('audio');
             audioEl.src = URL.createObjectURL(file);
-            audioEl.loop = true;
-            audioEl.play().catch(e => alert("播放失败，可能是浏览器不支持此音频格式或需要交互权限"));
-
-            const context = new (window.AudioContext || window.webkitAudioContext)();
-            const src = context.createMediaElementSource(audioEl);
-            analyser = context.createAnalyser();
-            analyser.fftSize = 2048; 
-            src.connect(analyser);
-            analyser.connect(context.destination);
+            audioEl.loop = false;
             
-            dataArray = new Uint8Array(analyser.frequencyBinCount);
+            audioEl.addEventListener('canplay', () => {
+                if(!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const src = audioContext.createMediaElementSource(audioEl);
+                    analyser = audioContext.createAnalyser();
+                    analyser.fftSize = 2048;
+                    analyser.smoothingTimeConstant = 0.8;
+                    src.connect(analyser);
+                    analyser.connect(audioContext.destination);
+                    dataArray = new Uint8Array(analyser.frequencyBinCount);
+                }
+                playMusic();
+            });
+
+            audioEl.addEventListener('timeupdate', updateProgress);
+            audioEl.addEventListener('ended', () => {
+                isPlaying = false;
+                playBtn.innerHTML = '►';
+            });
 
             document.getElementById('overlay').style.opacity = 0;
             setTimeout(() => {
                 document.getElementById('overlay').style.display = 'none';
-                document.getElementById('controls').style.display = 'block';
+                document.getElementById('shape-controls').classList.add('visible');
+                document.getElementById('player-ui').classList.add('visible');
             }, 1000);
+        }
+
+        function playMusic() {
+            audioContext.resume().then(() => {
+                audioEl.play();
+                isPlaying = true;
+                playBtn.innerHTML = '❚❚';
+            });
+        }
+
+        function togglePlay() {
+            if (!audioEl) return;
+            if (isPlaying) {
+                audioEl.pause();
+                playBtn.innerHTML = '►';
+            } else {
+                audioEl.play();
+                playBtn.innerHTML = '❚❚';
+            }
+            isPlaying = !isPlaying;
+        }
+
+        function updateProgress() {
+            const current = audioEl.currentTime;
+            const duration = audioEl.duration;
+            if (duration) {
+                progressBar.value = (current / duration) * 100;
+                timeDisplay.textContent = formatTime(current) + ' / ' + formatTime(duration);
+            }
+        }
+
+        function formatTime(s) {
+            const m = Math.floor(s / 60);
+            const sec = Math.floor(s % 60);
+            return `${m}:${sec < 10 ? '0' : ''}${sec}`;
         }
 
         window.switchShape = function(name) {
             currentShape = name;
-            document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.shape-btn').forEach(b => b.classList.remove('active'));
             event.target.classList.add('active');
         };
 
@@ -294,61 +398,71 @@
         function animate() {
             requestAnimationFrame(animate);
 
-            let audioLevel = 0;
-            let lowFreq = 0;
-            let highFreq = 0; 
-            
-            if (analyser) {
+            let bass = 0, mid = 0, high = 0;
+            let avgVolume = 0;
+
+            if (analyser && isPlaying) {
                 analyser.getByteFrequencyData(dataArray);
-                let sum = 0;
-                for(let i=0; i<dataArray.length; i++) sum += dataArray[i];
-                audioLevel = sum / dataArray.length;
-                
-                lowFreq = dataArray[50]; 
-                highFreq = dataArray[800]; 
+                let bSum = 0, mSum = 0, hSum = 0;
+                for(let i=0; i<40; i++) bSum += dataArray[i];
+                for(let i=40; i<200; i++) mSum += dataArray[i];
+                for(let i=200; i<800; i++) hSum += dataArray[i];
+                bass = bSum / 40;
+                mid = mSum / 160;
+                high = hSum / 600;
+                avgVolume = (bass + mid + high) / 3;
             } else {
-                audioLevel = 20 + Math.sin(Date.now() * 0.002) * 10;
+                avgVolume = 15 + Math.sin(Date.now() * 0.002) * 15;
             }
 
             const positions = geometry.attributes.position.array;
             const colors = geometry.attributes.color.array;
             const targetPos = targets[currentShape];
+            
+            let scatter = 0;
+            if (bass > 155) {
+                scatter = (bass - 155) * 0.9; 
+            }
+            const pulse = 1 + (avgVolume / 255) * 0.35;
 
-            const speed = 0.03 + (lowFreq / 255) * 0.05;
+            // [关键修改点8：动态HDR颜色计算]
+            // 让基础亮度就很高，并且允许音乐将其推向极大值（超过1.0）
+            // 这里的 baseBrightness 在音乐高潮时可以达到 3.0 以上
+            let baseBrightness = 0.8 + (bass / 255) * 2.5; 
 
             for (let i = 0; i < PARTICLE_COUNT; i++) {
                 const i3 = i * 3;
                 
-                positions[i3] += (targetPos[i3] - positions[i3]) * speed;
-                positions[i3+1] += (targetPos[i3+1] - positions[i3+1]) * speed;
-                positions[i3+2] += (targetPos[i3+2] - positions[i3+2]) * speed;
+                let tx = targetPos[i3] * pulse;
+                let ty = targetPos[i3+1] * pulse;
+                let tz = targetPos[i3+2] * pulse;
 
-                if (audioLevel > 80) {
-                    const shake = (audioLevel - 80) * 0.05;
-                    positions[i3] += rand(-shake, shake);
-                    positions[i3+1] += rand(-shake, shake);
-                    positions[i3+2] += rand(-shake, shake);
+                if (scatter > 0) {
+                    tx += (Math.random() - 0.5) * scatter * 12;
+                    ty += (Math.random() - 0.5) * scatter * 12;
+                    tz += (Math.random() - 0.5) * scatter * 12;
                 }
 
-                const mixFactor = (Math.sin(Date.now() * 0.001 + positions[i3]*0.01) + 1) / 2;
-                
-                const r = 0.1 + mixFactor * 0.8 + (highFreq/255)*0.5;
-                const g = 0.1 + mixFactor * 0.4 + (highFreq/255)*0.5;
-                const b = 0.4 + mixFactor * 0.2 + (highFreq/255)*0.8;
+                const speed = 0.04 + (mid / 255) * 0.12;
+                positions[i3] += (tx - positions[i3]) * speed;
+                positions[i3+1] += (ty - positions[i3+1]) * speed;
+                positions[i3+2] += (tz - positions[i3+2]) * speed;
 
-                colors[i3] = r;
-                colors[i3+1] = g;
-                colors[i3+2] = b;
+                // 应用HDR颜色
+                // R通道受高音影响变白，B通道受低音影响变深蓝
+                // 关键是这些值现在可以远远大于 1.0，从而触发强烈的辉光
+                colors[i3]   = baseBrightness * (1.0 + high/200); // R
+                colors[i3+1] = baseBrightness * (0.7 + high/400); // G
+                colors[i3+2] = baseBrightness * (1.3 + bass/400); // B
             }
 
             geometry.attributes.position.needsUpdate = true;
             geometry.attributes.color.needsUpdate = true;
 
-            const rotationSpeed = 0.001 + (audioLevel / 5000);
-            particles.rotation.y += rotationSpeed;
-            particles.rotation.z += rotationSpeed * 0.5;
-
-            composer.passes[1].strength = 1.5 + (audioLevel / 255) * 1.0;
+            particles.rotation.y += 0.0015 + (avgVolume * 0.00006);
+            
+            // [修改点9] 辉光强度随音乐动态变化的幅度也增加了
+            composer.passes[1].strength = 2.2 + (bass / 255) * 2.5;
 
             composer.render();
         }
