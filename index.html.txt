@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Particle Music Visualizer</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; color: white; font-family: sans-serif; }
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.8); z-index: 10; cursor: pointer; flex-direction: column; }
+        #ui { position: absolute; bottom: 20px; left: 20px; z-index: 5; pointer-events: none; }
+        button { pointer-events: auto; background: rgba(255,255,255,0.1); border: 1px solid #fff; color: #fff; padding: 8px 15px; cursor: pointer; margin-right: 5px; transition: 0.3s; }
+        button:hover { background: rgba(255,255,255,0.3); }
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        <h1>点击屏幕开启宇宙之旅</h1>
+        <p>请准备好音乐文件或麦克风权限</p>
+    </div>
+
+    <div id="ui">
+        <button onclick="switchShape('sphere')">球体</button>
+        <button onclick="switchShape('heart')">笛卡尔心形</button>
+        <button onclick="switchShape('lorenz')">Lorenz吸引子</button>
+        <button onclick="switchShape('galaxy')">星系螺旋</button>
+        <button onclick="switchShape('cube')">立方体(Menger基础)</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        // --- 1. 初始化场景 ---
+        const scene = new THREE.Scene();
+        // 添加一点环境雾，增加深空感
+        scene.fog = new THREE.FogExp2(0x000000, 0.002);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 100;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        // --- 2. 粒子系统配置 ---
+        const PARTICLE_COUNT = 30000; // 粒子数量
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(PARTICLE_COUNT * 3);
+        const colors = new Float32Array(PARTICLE_COUNT * 3);
+        
+        // 存储不同形态的目标位置
+        const shapes = {
+            sphere: [],
+            heart: [],
+            lorenz: [],
+            galaxy: [],
+            cube: []
+        };
+
+        // --- 3. 数学生成算法 ---
+
+        // 工具：随机数
+        const rand = (min, max) => Math.random() * (max - min) + min;
+
+        // 生成形状数据
+        function generateShapes() {
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const i3 = i * 3;
+
+                // A. 球体 / 宇宙尘埃
+                const phi = Math.acos(-1 + (2 * i) / PARTICLE_COUNT);
+                const theta = Math.sqrt(PARTICLE_COUNT * Math.PI) * phi;
+                const r = 40;
+                shapes.sphere.push(
+                    r * Math.cos(theta) * Math.sin(phi),
+                    r * Math.sin(theta) * Math.sin(phi),
+                    r * Math.cos(phi)
+                );
+
+                // B. 笛卡尔心形 (3D变体)
+                // (x^2 + 9/4y^2 + z^2 - 1)^3 - x^2z^3 - 9/200y^2z^3 = 0 的参数化近似或几何堆叠
+                // 这里使用简单的参数方程变体
+                let t = rand(0, Math.PI * 2);
+                let u = rand(0, Math.PI);
+                let x_h = 16 * Math.pow(Math.sin(t), 3);
+                let y_h = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+                let z_h = rand(-5, 5) * (x_h * 0.05 + 1); // 增加厚度
+                // 缩放
+                shapes.heart.push(x_h * 1.5, y_h * 1.5, z_h);
+
+                // C. Lorenz 吸引子 (混沌系统)
+                // 需要迭代生成
+                if (i === 0) {
+                    window.lx = 0.1; window.ly = 0; window.lz = 0;
+                }
+                let dt = 0.005;
+                let sigma = 10, rho = 28, beta = 8/3;
+                let dx = sigma * (window.ly - window.lx) * dt;
+                let dy = (window.lx * (rho - window.lz) - window.ly) * dt;
+                let dz = (window.lx * window.ly - beta * window.lz) * dt;
+                window.lx += dx; window.ly += dy; window.lz += dz;
+                shapes.lorenz.push(window.lx * 1.5, window.ly * 1.5, window.lz * 1.5 - 30); // 居中调整
+
+                // D. 星系螺旋
+                let angle = i * 0.1;
+                let radius = i * 0.005;
+                let spiralX = Math.cos(angle) * radius * 15 + rand(-2, 2);
+                let spiralY = Math.sin(angle) * radius * 15 + rand(-2, 2);
+                let spiralZ = (Math.random() - 0.5) * (50 - radius); // 中心厚，边缘薄
+                shapes.galaxy.push(spiralX, spiralY, spiralZ);
+
+                // E. 立方体 (Menger海绵的基础)
+                let cSize = 40;
+                shapes.cube.push(
+                    rand(-cSize/2, cSize/2),
+                    rand(-cSize/2, cSize/2),
+                    rand(-cSize/2, cSize/2)
+                );
+
+                // 初始位置设为随机分布（大爆炸前夕）
+                positions[i3] = rand(-100, 100);
+                positions[i3 + 1] = rand(-100, 100);
+                positions[i3 + 2] = rand(-100, 100);
+
+                // 初始颜色
+                const color = new THREE.Color();
+                color.setHSL(i / PARTICLE_COUNT, 0.8, 0.6);
+                colors[i3] = color.r;
+                colors[i3 + 1] = color.g;
+                colors[i3 + 2] = color.b;
+            }
+        }
+
+        generateShapes();
+
+        // 绑定属性到几何体
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        // 材质：使用 Shader 或 PointsMaterial
+        // 这里为了光晕效果，使用自定义纹理的 PointsMaterial
+        const sprite = new THREE.TextureLoader().load('https://threejs.org/examples/textures/sprites/disc.png');
+        const material = new THREE.PointsMaterial({
+            size: 0.5,
+            vertexColors: true,
+            map: sprite,
+            blending: THREE.AdditiveBlending,
+            depthTest: false,
+            transparent: true,
+            opacity: 0.8
+        });
+
+        const particles = new THREE.Points(geometry, material);
+        scene.add(particles);
+
+        // --- 4. 音频处理 ---
+        let analyser, dataArray;
+        let isAudioInit = false;
+
+        async function initAudio() {
+            const listener = new THREE.AudioListener();
+            const audio = new THREE.Audio(listener);
+            
+            // 请求麦克风或者是加载文件
+            // 这里演示使用麦克风，更具交互性
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const context = new AudioContext();
+                const source = context.createMediaStreamSource(stream);
+                analyser = context.createAnalyser();
+                analyser.fftSize = 512;
+                source.connect(analyser);
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                isAudioInit = true;
+                document.getElementById('overlay').style.display = 'none';
+            } catch(e) {
+                alert("无法获取麦克风权限，可视化将使用模拟数据");
+                document.getElementById('overlay').style.display = 'none';
+                isAudioInit = true; // 开启静音模式
+            }
+        }
+
+        document.getElementById('overlay').addEventListener('click', initAudio);
+
+        // --- 5. 变形逻辑 ---
+        let currentShape = 'sphere';
+        let transitionSpeed = 0.05;
+
+        // 全局函数供按钮调用
+        window.switchShape = function(shapeName) {
+            currentShape = shapeName;
+        };
+
+        function morphParticles() {
+            const targetPositions = shapes[currentShape];
+            const currentPositions = geometry.attributes.position.array;
+
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const i3 = i * 3;
+                
+                // 简单的线性插值 (Lerp)
+                currentPositions[i3] += (targetPositions[i3] - currentPositions[i3]) * transitionSpeed;
+                currentPositions[i3 + 1] += (targetPositions[i3 + 1] - currentPositions[i3 + 1]) * transitionSpeed;
+                currentPositions[i3 + 2] += (targetPositions[i3 + 2] - currentPositions[i3 + 2]) * transitionSpeed;
+            }
+            geometry.attributes.position.needsUpdate = true;
+        }
+
+        // --- 6. 动画循环 ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            let audioLevel = 0;
+            if (isAudioInit && analyser) {
+                analyser.getByteFrequencyData(dataArray);
+                // 计算平均音量
+                let sum = 0;
+                for(let i=0; i<dataArray.length; i++) sum += dataArray[i];
+                audioLevel = sum / dataArray.length; // 0 - 255
+            } else if (isAudioInit) {
+                 // 模拟音频数据（如果没有麦克风）
+                 audioLevel = Math.sin(Date.now() * 0.005) * 50 + 50;
+            }
+
+            // 1. 粒子形态转换
+            morphParticles();
+
+            // 2. 音乐律动：整体旋转 + 缩放
+            particles.rotation.y += 0.002;
+            
+            // 3. 音乐律动：粒子大小闪烁
+            // 注意：频繁修改 material 属性可能影响性能，这里简单演示
+            const beatScale = 1 + (audioLevel / 255) * 1.5; // 1x 到 2.5x
+            particles.scale.setScalar(beatScale); 
+            
+            // 4. 颜色随节奏轻微偏移
+            particles.material.size = 0.5 + (audioLevel / 255) * 1.0;
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // 窗口自适应
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+    </script>
+</body>
+</html>
